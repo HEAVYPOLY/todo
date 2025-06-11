@@ -1,4 +1,4 @@
-const { div, span, input, button } = van.tags
+const { div, span, input, button, h1 } = van.tags
 const prnt = console.log
 let timers = {}
 console.clear()
@@ -40,11 +40,11 @@ class TodoItem {
     this.section = toSection
     const thisItem = this
     prnt('moveItem', this.text, fromSection, ' -> ', toSection, targetIndex)
-    vanX.replace(state[fromSection].items, state[fromSection].items.filter(i => i.id !== thisItem.id))
+    vanX.replace(state.sections[fromSection].items, state.sections[fromSection].items.filter(i => i.id !== thisItem.id))
     if (targetIndex !== null && targetIndex >= 0) {
-      state[toSection].items.splice(targetIndex, 0, thisItem)
+      state.sections[toSection].items.splice(targetIndex, 0, thisItem)
     } else {
-      state[toSection].items.push(thisItem)
+      state.sections[toSection].items.push(thisItem)
     }
   }
   toggle(fromSection) {
@@ -53,89 +53,85 @@ class TodoItem {
       // this.done = false
     if (this.done) {
       prnt('pop from ', fromSection, ' and push to Done')
-      state[fromSection].items.splice(state[fromSection].items.indexOf(this), 1)
-      state['Done'].items.push(this)
+      state.sections[fromSection].items.splice(state.sections[fromSection].items.indexOf(this), 1)
+      state.sections['Done'].items.push(this)
       this.section = 'Done'
       this.prevSection = fromSection
-      if (fromSection === 'Now' && state.Now.items.length === 0 && state.Next.items.length > 0) {
-        const promote = state.Next.items.shift()
-        if (promote) state.Now.items.push(promote)
+      if (fromSection === 'Now' && state.sections.Now.items.length === 0 && state.sections.Next.items.length > 0) {
+        const promote = state.sections.Next.items.shift()
+        if (promote) state.sections.Now.items.push(promote)
       }
       return
     } else {
       prnt('pop from Done and push to ', this.prevSection)
-      state['Done'].items.splice(state['Done'].items.indexOf(this), 1)
-      if (state.Now.items.length < maxNowLength) {
-        state.Now.items.push(this)
+      state.sections['Done'].items.splice(state.sections['Done'].items.indexOf(this), 1)
+      if (state.sections.Now.items.length < maxNowLength) {
+        state.sections.Now.items.push(this)
         this.section = 'Now'
       } else {
-        state['Next'].items.push(this)
+        state.sections.Next.items.push(this)
         this.section = 'Next'
       }
       this.prevSection = 'Done'
     }
-    // if (!this.done) {
-    //   // Save if we are toggling from Now
-    //   const wasNow = fromSection === 'Now'
-    //   this.move(fromSection, 'Done')
-    //   // if (wasNow && state.Now.items.length === 0 && state.Next.items.length > 0) {
-    //   //   const promote = state.Next.items.shift()
-    //   //   if (promote) state.Now.items.push(promote)
-    //   // }
-    // }
   }
 }
 
 function loadState() {
   const raw = JSON.parse(localStorage.getItem('todo-state'))
-  if (!raw) return null
-  const result = {}
-  for (const section of Object.keys(raw)) {
-    result[section] = {
-      collapsed: raw[section].collapsed,
-      items: raw[section].items.map(TodoItem.deserialize)
+  if (!raw) return false
+  const result = { projectName: raw.projectName, sections: {} }
+  if (!raw.sections) return false
+  for (const section of Object.keys(raw.sections)) {
+    result.sections[section] = {
+      collapsed: raw.sections[section].collapsed,
+      items: raw.sections[section].items.map(TodoItem.deserialize)
     }
   }
+  prnt('loaded state', result)
   return result
 }
 
 const state = vanX.reactive(loadState() || {
-  Now: {
-    collapsed: false,
-    items: [
-      new TodoItem({ text: 'Login system hp4', section: 'Now' }),
-    ]
-  },
-  Next: {
-    collapsed: false,
-    items: [
-      new TodoItem({ text: 'Gallery hp4', section: 'Next' }),
-      new TodoItem({ text: 'User Prefs hp4', section: 'Next' }),
-      new TodoItem({ text: 'Purchases hp4', section: 'Next' }),
-      new TodoItem({ text: 'Check Google', section: 'Next' })
-    ]
-  },
-  Done: {
-    collapsed: false,
-    items: [
-      new TodoItem({ text: 'iOS Image Export', section: 'Done' }),
-      new TodoItem({ text: 'Android Project export Tab', section: 'Done' }),
-      new TodoItem({ text: 'Android Studio update and new project exported', section: 'Done' }),
-      new TodoItem({ text: 'Android image export Tab', section: 'Done' }),
-      new TodoItem({ text: 'android Image Export Note 9', section: 'Done' }),
-      new TodoItem({ text: 'android Project Export', section: 'Done' }),
-      new TodoItem({ text: 'iOS Project Export', section: 'Done' })
-    ]
+  projectName: 'HEAVYPAINT',
+  sections: {
+    Now: {
+      collapsed: false,
+      items: [
+        new TodoItem({ text: 'Login system hp4', section: 'Now' }),
+      ]
+    },
+    Next: {
+      collapsed: false,
+      items: [
+        new TodoItem({ text: 'Gallery hp4', section: 'Next' }),
+        new TodoItem({ text: 'User Prefs hp4', section: 'Next' }),
+        new TodoItem({ text: 'Purchases hp4', section: 'Next' }),
+        new TodoItem({ text: 'Check Google', section: 'Next' })
+      ]
+    },
+    Done: {
+      collapsed: false,
+      items: [
+        new TodoItem({ text: 'iOS Image Export', section: 'Done' }),
+        new TodoItem({ text: 'Android Project export Tab', section: 'Done' }),
+        new TodoItem({ text: 'Android Studio update and new project exported', section: 'Done' }),
+        new TodoItem({ text: 'Android image export Tab', section: 'Done' }),
+        new TodoItem({ text: 'android Image Export Note 9', section: 'Done' }),
+        new TodoItem({ text: 'android Project Export', section: 'Done' }),
+        new TodoItem({ text: 'iOS Project Export', section: 'Done' })
+      ]
+    }
   }
 })
 
 van.derive(() => {
   if (state) {
-    const toSave = {}
-    for (const section of Object.keys(state)) {
-      toSave[section] = {
-        collapsed: state[section].collapsed,
-        items: state[section].items.map(item => item.serialize())
+    const toSave = { projectName: state.projectName, sections: {} }
+    for (const section of Object.keys(state.sections)) {
+      toSave.sections[section] = {
+        collapsed: state.sections[section].collapsed,
+        items: state.sections[section].items.map(item => item.serialize())
       }
     }
     localStorage.setItem('todo-state', JSON.stringify(toSave))
@@ -159,9 +155,8 @@ function removeDragVisuals () {
   }
 }
 
-function createTodoItem (itemOb, sectionName) {
+function createTodoItem (item, sectionName) {
   // prnt('createTodoItem')
-  const item = itemOb.value
   let startX = 0
   let startY = 0
   let startTime = 0
@@ -250,12 +245,10 @@ function createTodoItem (itemOb, sectionName) {
             const targetItemId = targetEl.getAttribute('id')
             const targetItemSection = targetEl.getAttribute('section')
             if (draggedItem && draggedFromSection && (draggedItem.id !== targetItemId || draggedFromSection !== targetItemSection)) {
-              // Remove from old section
-              const fromArr = state[draggedFromSection].items
+              const fromArr = state.sections[draggedFromSection].items
               const oldIdx = fromArr.findIndex(i => i.id === draggedItem.id)
               if (oldIdx !== -1) fromArr.splice(oldIdx, 1)
-              // Insert into new section at correct index
-              const toArr = state[targetItemSection].items
+              const toArr = state.sections[targetItemSection].items
               const insertIdx = toArr.findIndex(i => i.id === targetItemId)
               if (insertIdx !== -1) toArr.splice(insertIdx, 0, draggedItem)
               else toArr.push(draggedItem)
@@ -264,12 +257,10 @@ function createTodoItem (itemOb, sectionName) {
           } else if (dropZone && draggedItem && draggedFromSection) {
             const targetSection = dropZone.getAttribute('data-section') || dropZone.dataset?.section
             if (targetSection && targetSection !== draggedFromSection) {
-              // Remove from old section
-              const fromArr = state[draggedFromSection].items
+              const fromArr = state.sections[draggedFromSection].items
               const oldIdx = fromArr.findIndex(i => i.id === draggedItem.id)
               if (oldIdx !== -1) fromArr.splice(oldIdx, 1)
-              // Add to end of new section
-              const toArr = state[targetSection].items
+              const toArr = state.sections[targetSection].items
               toArr.push(draggedItem)
               draggedItem.section = targetSection
             }
@@ -313,23 +304,23 @@ function addNewItem (sectionName, inputElement) {
   const text = inputElement.value.trim()
   if (text) {
     const newItem = new TodoItem({ text, section: sectionName, done: sectionName === 'Done' })
-    if (sectionName === 'Now' && state.Now.items.length >= maxNowLength) {
-      state.Next.items.push(newItem)
+    if (sectionName === 'Now' && state.sections.Now.items.length >= maxNowLength) {
+      state.sections.Next.items.push(newItem)
     } else {
-      state[sectionName].items.push(newItem)
+      state.sections[sectionName].items.push(newItem)
     }
     inputElement.value = ''
   }
 }
 
 function toggleSection (sectionName) {
-  state[sectionName].collapsed = !state[sectionName].collapsed
+  state.sections[sectionName].collapsed = !state.sections[sectionName].collapsed
 }
 
 function createSection (sectionName, section) {
   const isDoneSection = sectionName === 'Done'
   return div(
-    { class: 'section', style: () => (['Next', 'Done'].includes(sectionName) ? (opSm) : '') + cornerRoundLg + paddingLg + darkLow },
+    { class: 'section', style: () => (['Next', 'Done'].includes(sectionName) ? ('') : '') + cornerRoundLg + paddingLg + darkLow },
     div(
       { class: 'section-header' },
       div(
@@ -366,17 +357,18 @@ function createSection (sectionName, section) {
       ? List({
         container: div({ style: (isDoneSection ? 'flex-direction:column-reverse;display:flex;' : '') + fill + 'margin-top:1em' }),
         items: section.items,
-        renderItem: (item) => createTodoItem(item, sectionName)
+        renderItem: ({value}) => createTodoItem(value, sectionName)
       })
       : Placeholder()
   )
 }
 const app = div(
+  h1({style:'margin-bottom:1em'},state.projectName),
+  prnt('sections', state.sections),
   List({
     container: div(),
-    items: state,
-    renderItem: ({ key, value }) => createSection(key, value)
-
+    items: state.sections,
+    renderItem: ({key, value}) => createSection(key, value)
   }),
   button({ onclick: () => {
     localStorage.removeItem('todo-state')
