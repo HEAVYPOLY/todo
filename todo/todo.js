@@ -49,14 +49,13 @@ class TodoItem {
   }
   toggle(fromSection) {
     this.done = !this.done
-    // if (fromSection === 'Done') {
-      // this.done = false
     if (this.done) {
       prnt('pop from ', fromSection, ' and push to Done')
       state.sections[fromSection].items.splice(state.sections[fromSection].items.indexOf(this), 1)
       state.sections['Done'].items.push(this)
-      this.section = 'Done'
       this.prevSection = fromSection
+      this.prevIndex = state.sections[fromSection].items.length // after removal, so last index
+      this.section = 'Done'
       if (fromSection === 'Now' && state.sections.Now.items.length === 0 && state.sections.Next.items.length > 0) {
         const promote = state.sections.Next.items.shift()
         if (promote) state.sections.Now.items.push(promote)
@@ -65,13 +64,16 @@ class TodoItem {
     } else {
       prnt('pop from Done and push to ', this.prevSection)
       state.sections['Done'].items.splice(state.sections['Done'].items.indexOf(this), 1)
-      if (state.sections.Now.items.length < maxNowLength) {
-        state.sections.Now.items.push(this)
-        this.section = 'Now'
-      } else {
-        state.sections.Next.items.push(this)
-        this.section = 'Next'
+      let targetArr = state.sections.Now.items
+      let targetSection = 'Now'
+      if (this.prevSection && this.prevSection in state.sections) {
+        targetArr = state.sections[this.prevSection].items
+        targetSection = this.prevSection
       }
+      let idx = this.prevIndex
+      if (typeof idx !== 'number' || idx < 0 || idx > targetArr.length) idx = targetArr.length
+      targetArr.splice(idx, 0, this)
+      this.section = targetSection
       this.prevSection = 'Done'
     }
   }
