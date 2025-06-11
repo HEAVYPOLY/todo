@@ -57,10 +57,9 @@ const colorSets = {
     active: 'hsla(0, 0%, 100%, 0.15)',
   }
 }
-const op50 = 'opacity: 0.5;'
-const op75 = 'opacity: 0.75;'
-const op90 = 'opacity: 0.9;'
-const op30 = 'opacity: 0.3;'
+const opSm = 'opacity: 0.5;'
+const opMd = 'opacity: 0.75;'
+const opLg = 'opacity: 0.9;'
 const noInput = 'pointer-events:none;'
 const pointerEvents = 'pointer-events:all;'
 const fill = 'width: 100%; height: 100%;'

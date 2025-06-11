@@ -172,8 +172,8 @@ function createTodoItem (itemOb, sectionName) {
   const todoItem = div(
     {
       class: `todo-item ${item.done ? 'done-item' : ''}`,
-      'data-item-id': item.id,
-      'data-section': sectionName,
+      id: item.id,
+      section: item.section,
       onpointerdown: (e) => {
         startX = e.clientX
         startY = e.clientY
@@ -244,25 +244,34 @@ function createTodoItem (itemOb, sectionName) {
 
         if (isDragging) {
           const elementBelow = document.elementFromPoint(e.clientX, e.clientY)
-          const targetItem = elementBelow?.closest('.todo-item')
+          const targetEl = elementBelow?.closest('.todo-item')
           const dropZone = elementBelow?.closest('.drop-zone')
-
-          if (targetItem && draggedItem && draggedFromSection) {
-            const targetItemId = parseInt(targetItem.dataset.itemId)
-            const targetSection = targetItem.dataset.section
-
-            if (targetItemId !== draggedItem.id && targetSection) {
-              const targetIndex = state[targetSection].items.findIndex(i => i.id === targetItemId)
-              if (targetIndex >= 0) {
-                draggedItem.move(draggedFromSection, targetSection, targetIndex)
-              }
+          if (targetEl) {
+            const targetItemId = targetEl.getAttribute('id')
+            const targetItemSection = targetEl.getAttribute('section')
+            if (draggedItem && draggedFromSection && (draggedItem.id !== targetItemId || draggedFromSection !== targetItemSection)) {
+              // Remove from old section
+              const fromArr = state[draggedFromSection].items
+              const oldIdx = fromArr.findIndex(i => i.id === draggedItem.id)
+              if (oldIdx !== -1) fromArr.splice(oldIdx, 1)
+              // Insert into new section at correct index
+              const toArr = state[targetItemSection].items
+              const insertIdx = toArr.findIndex(i => i.id === targetItemId)
+              if (insertIdx !== -1) toArr.splice(insertIdx, 0, draggedItem)
+              else toArr.push(draggedItem)
+              draggedItem.section = targetItemSection
             }
           } else if (dropZone && draggedItem && draggedFromSection) {
-            const targetSection = dropZone.dataset?.section
-
-            if (targetSection && targetSection !== draggedFromSection.toLowerCase()) {
-              const properSectionName = targetSection.charAt(0).toUpperCase() + targetSection.slice(1)
-              draggedItem.move(draggedFromSection, properSectionName)
+            const targetSection = dropZone.getAttribute('data-section') || dropZone.dataset?.section
+            if (targetSection && targetSection !== draggedFromSection) {
+              // Remove from old section
+              const fromArr = state[draggedFromSection].items
+              const oldIdx = fromArr.findIndex(i => i.id === draggedItem.id)
+              if (oldIdx !== -1) fromArr.splice(oldIdx, 1)
+              // Add to end of new section
+              const toArr = state[targetSection].items
+              toArr.push(draggedItem)
+              draggedItem.section = targetSection
             }
           }
 
@@ -270,7 +279,6 @@ function createTodoItem (itemOb, sectionName) {
             el.classList.remove('drag-over')
           })
         } else if (!isDragging && distance < DRAG_THRESHOLD && timeDelta < CLICK_TIME_THRESHOLD) {
-          // prnt('here')
           item.toggle(sectionName)
         }
 
@@ -319,8 +327,9 @@ function toggleSection (sectionName) {
 }
 
 function createSection (sectionName, section) {
+  const isDoneSection = sectionName === 'Done'
   return div(
-    { class: 'section', style: () => (['Next', 'Done'].includes(sectionName) ? (op30) : '') + cornerRoundLg + paddingLg + darkLow },
+    { class: 'section', style: () => (['Next', 'Done'].includes(sectionName) ? (opSm) : '') + cornerRoundLg + paddingLg + darkLow },
     div(
       { class: 'section-header' },
       div(
@@ -355,7 +364,7 @@ function createSection (sectionName, section) {
     ),
     () => !section.collapsed
       ? List({
-        container: div({ style: fill + 'margin-top:1em' }),
+        container: div({ style: (isDoneSection ? 'flex-direction:column-reverse;display:flex;' : '') + fill + 'margin-top:1em' }),
         items: section.items,
         renderItem: (item) => createTodoItem(item, sectionName)
       })
