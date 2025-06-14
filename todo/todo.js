@@ -171,13 +171,15 @@ function createTodoItem (item, sectionName) {
       class: `todo-item ${item.done ? 'done-item' : ''}`,
       id: item.id,
       section: item.section,
-      onpointerdown: (e) => {
-        startX = e.clientX
-        startY = e.clientY
-        startTime = Date.now()
-        isDragging = false
-        e.currentTarget.setPointerCapture(e.pointerId)
-      },
+             onpointerdown: (e) => {
+         startX = e.clientX
+         startY = e.clientY
+         startTime = Date.now()
+         isDragging = false
+         e.currentTarget.setPointerCapture(e.pointerId)
+         e.preventDefault()
+         document.body.style.userSelect = 'none'
+       },
       onpointermove: (e) => {
         if (startTime === 0) return
 
@@ -186,21 +188,27 @@ function createTodoItem (item, sectionName) {
         const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY)
         const timeDelta = Date.now() - startTime
 
-        if (distance > DRAG_THRESHOLD && timeDelta < CLICK_TIME_THRESHOLD && !isDragging) {
-          isDragging = true
-          e.currentTarget.classList.add('dragging')
-          draggedItem = item
-          draggedFromSection = sectionName
+                 if (distance > DRAG_THRESHOLD && timeDelta < CLICK_TIME_THRESHOLD && !isDragging) {
+           isDragging = true
+           e.currentTarget.classList.add('dragging')
+           document.body.classList.add('dragging')
+           draggedItem = item
+           draggedFromSection = sectionName
 
-          // Create floating clone
-          dragClone = e.currentTarget.cloneNode(true)
-          dragClone.style.position = 'fixed'
-          dragClone.style.pointerEvents = 'none'
-          dragClone.style.opacity = '0.8'
-          dragClone.style.zIndex = '9999'
-          dragClone.classList.add('drag-clone')
-          document.body.appendChild(dragClone)
-        }
+           // Clear any existing text selection
+           if (window.getSelection) {
+             window.getSelection().removeAllRanges()
+           }
+
+           // Create floating clone
+           dragClone = e.currentTarget.cloneNode(true)
+           dragClone.style.position = 'fixed'
+           dragClone.style.pointerEvents = 'none'
+           dragClone.style.opacity = '0.8'
+           dragClone.style.zIndex = '9999'
+           dragClone.classList.add('drag-clone')
+           document.body.appendChild(dragClone)
+         }
 
         if (isDragging) {
           // Move floating clone
@@ -210,27 +218,79 @@ function createTodoItem (item, sectionName) {
             dragClone.style.width = e.currentTarget.offsetWidth + 'px'
           }
 
-          // Preview line
-          const elementBelow = document.elementFromPoint(e.clientX, e.clientY)
-          const targetItem = elementBelow?.closest('.todo-item')
-          const dropZone = elementBelow?.closest('.drop-zone')
+                     // Enhanced drop preview
+           const elementBelow = document.elementFromPoint(e.clientX, e.clientY)
+           const targetItem = elementBelow?.closest('.todo-item')
+           const container = elementBelow?.closest('.items-container')
 
-          document.querySelectorAll('.todo-item.drag-over, .drop-zone.drag-over').forEach(el => {
-            el.classList.remove('drag-over')
-          })
-          if (previewLine) previewLine.remove()
+           // Clear previous indicators
+           document.querySelectorAll('.todo-item.drag-over, .todo-item.drag-above, .todo-item.drag-below').forEach(el => {
+             el.classList.remove('drag-over', 'drag-above', 'drag-below')
+           })
+           if (previewLine) {
+             previewLine.remove()
+             previewLine = null
+           }
 
-          if (targetItem && targetItem.dataset.itemId !== item.id.toString()) {
-            targetItem.classList.add('drag-over')
-            previewLine = document.createElement('div')
-            previewLine.className = 'preview-line'
-            targetItem.parentNode.insertBefore(previewLine, targetItem)
-          } else if (dropZone) {
-            dropZone.classList.add('drag-over')
-            previewLine = document.createElement('div')
-            previewLine.className = 'preview-line'
-            dropZone.appendChild(previewLine)
-          }
+                       if (targetItem && targetItem.id !== item.id) {
+              const targetRect = targetItem.getBoundingClientRect()
+              const mouseY = e.clientY
+              const targetTop = targetRect.top
+              const targetBottom = targetRect.bottom
+              const targetHeight = targetRect.height
+              
+              // Create larger drop zones - top 40% and bottom 40% with 20% middle
+              const dropAboveZone = targetTop + (targetHeight * 0.4)
+              const dropBelowZone = targetBottom - (targetHeight * 0.4)
+              
+              // Create enhanced preview line
+              previewLine = document.createElement('div')
+              previewLine.className = 'drop-indicator'
+              previewLine.style.cssText = `
+                position: absolute;
+                left: 0;
+                right: 0;
+                height: 3px;
+                background: #007acc;
+                border-radius: 2px;
+                box-shadow: 0 0 8px rgba(0, 122, 204, 0.5);
+                z-index: 1000;
+                pointer-events: none;
+                animation: pulse 1s infinite;
+              `
+              
+              // Position indicator based on mouse position in drop zones
+              if (mouseY < dropAboveZone) {
+                // Drop above target (in top 40% of item)
+                targetItem.classList.add('drag-above')
+                targetItem.parentNode.insertBefore(previewLine, targetItem)
+                previewLine.style.top = '-2px'
+              } else if (mouseY > dropBelowZone) {
+                // Drop below target (in bottom 40% of item)
+                targetItem.classList.add('drag-below')
+                targetItem.parentNode.insertBefore(previewLine, targetItem.nextSibling)
+                previewLine.style.top = '-2px'
+              } else {
+                // In middle zone - default to below for better UX
+                targetItem.classList.add('drag-below')
+                targetItem.parentNode.insertBefore(previewLine, targetItem.nextSibling)
+                previewLine.style.top = '-2px'
+              }
+            } else if (container && !targetItem) {
+             // Dropping in empty space at end of list
+             previewLine = document.createElement('div')
+             previewLine.className = 'drop-indicator'
+             previewLine.style.cssText = `
+               position: relative;
+               height: 3px;
+               background: #007acc;
+               border-radius: 2px;
+               box-shadow: 0 0 8px rgba(0, 122, 204, 0.5);
+               margin: 8px 0;
+               animation: pulse 1s infinite;
+             `
+             container.appendChild(previewLine)
+           }
         }
       },
       onpointerup: (e) => {
@@ -239,49 +299,104 @@ function createTodoItem (item, sectionName) {
         const deltaY = Math.abs(e.clientY - startY)
         const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY)
 
-        if (isDragging) {
-          const elementBelow = document.elementFromPoint(e.clientX, e.clientY)
-          const targetEl = elementBelow?.closest('.todo-item')
-          const dropZone = elementBelow?.closest('.drop-zone')
-          if (targetEl) {
-            const targetItemId = targetEl.getAttribute('id')
-            const targetItemSection = targetEl.getAttribute('section')
-            if (draggedItem && draggedFromSection && (draggedItem.id !== targetItemId || draggedFromSection !== targetItemSection)) {
-              const fromArr = state.sections[draggedFromSection].items
-              const oldIdx = fromArr.findIndex(i => i.id === draggedItem.id)
-              if (oldIdx !== -1) fromArr.splice(oldIdx, 1)
-              const toArr = state.sections[targetItemSection].items
-              const insertIdx = toArr.findIndex(i => i.id === targetItemId)
-              if (insertIdx !== -1) toArr.splice(insertIdx, 0, draggedItem)
-              else toArr.push(draggedItem)
-              draggedItem.section = targetItemSection
-            }
-          } else if (dropZone && draggedItem && draggedFromSection) {
-            const targetSection = dropZone.getAttribute('data-section') || dropZone.dataset?.section
-            if (targetSection && targetSection !== draggedFromSection) {
-              const fromArr = state.sections[draggedFromSection].items
-              const oldIdx = fromArr.findIndex(i => i.id === draggedItem.id)
-              if (oldIdx !== -1) fromArr.splice(oldIdx, 1)
-              const toArr = state.sections[targetSection].items
-              toArr.push(draggedItem)
-              draggedItem.section = targetSection
-            }
-          }
+                          if (isDragging) {
+           const elementBelow = document.elementFromPoint(e.clientX, e.clientY)
+           const targetEl = elementBelow?.closest('.todo-item')
+           const container = elementBelow?.closest('.items-container')
+           let droppedItemId = null
+           
+           if (targetEl && draggedItem && draggedItem.id !== targetEl.id) {
+             const arr = state.sections[sectionName].items
+             const oldIdx = arr.findIndex(i => i.id === draggedItem.id)
+             const targetId = targetEl.getAttribute('id')
+             const targetIdx = arr.findIndex(i => i.id === targetId)
+             
+             if (oldIdx !== -1 && targetIdx !== -1) {
+               // Determine if we're dropping above or below using same logic as visual feedback
+               const targetRect = targetEl.getBoundingClientRect()
+               const mouseY = e.clientY
+               const targetTop = targetRect.top
+               const targetBottom = targetRect.bottom
+               const targetHeight = targetRect.height
+               
+               // Use same drop zones as visual feedback
+               const dropAboveZone = targetTop + (targetHeight * 0.4)
+               const dropBelowZone = targetBottom - (targetHeight * 0.4)
+               
+               let dropAbove = false
+               if (mouseY < dropAboveZone) {
+                 dropAbove = true
+               } else if (mouseY > dropBelowZone) {
+                 dropAbove = false
+               } else {
+                 // Middle zone defaults to below
+                 dropAbove = false
+               }
+               
+               // Remove from old position
+               arr.splice(oldIdx, 1)
+               
+               // Calculate new insert position
+               let newIdx = targetIdx
+               
+               // If we removed an item before the target, adjust target index
+               if (oldIdx < targetIdx) {
+                 newIdx = targetIdx - 1
+               }
+               
+               // If dropping below, increment the position
+               if (!dropAbove) {
+                 newIdx = newIdx + 1
+               }
+               
+               // Ensure index is within bounds
+               newIdx = Math.max(0, Math.min(newIdx, arr.length))
+               
+               // Insert at new position
+               arr.splice(newIdx, 0, draggedItem)
+               droppedItemId = draggedItem.id
+             }
+           } else if (container && !targetEl && draggedItem) {
+             // Drop at end of list
+             const arr = state.sections[sectionName].items
+             const oldIdx = arr.findIndex(i => i.id === draggedItem.id)
+             if (oldIdx !== -1) {
+               arr.splice(oldIdx, 1)
+               arr.push(draggedItem)
+               droppedItemId = draggedItem.id
+             }
+           }
 
-          document.querySelectorAll('.todo-item.drag-over, .drop-zone.drag-over').forEach(el => {
-            el.classList.remove('drag-over')
-          })
+           // Clear all drag indicators
+           document.querySelectorAll('.todo-item.drag-over, .todo-item.drag-above, .todo-item.drag-below').forEach(el => {
+             el.classList.remove('drag-over', 'drag-above', 'drag-below')
+           })
+           
+           // Add highlight effect to dropped item
+           if (droppedItemId) {
+             setTimeout(() => {
+               const droppedElement = document.getElementById(droppedItemId)
+               if (droppedElement) {
+                 droppedElement.classList.add('just-dropped')
+                 setTimeout(() => {
+                   droppedElement.classList.remove('just-dropped')
+                 }, 1000)
+               }
+             }, 50)
+           }
         } else if (!isDragging && distance < DRAG_THRESHOLD && timeDelta < CLICK_TIME_THRESHOLD) {
           item.toggle(sectionName)
         }
 
-        startTime = 0
-        isDragging = false
-        e.currentTarget.classList.remove('dragging')
-        draggedItem = false
-        draggedFromSection = false
-        e.currentTarget.releasePointerCapture(e.pointerId)
-        removeDragVisuals()
+                 startTime = 0
+         isDragging = false
+         e.currentTarget.classList.remove('dragging')
+         document.body.classList.remove('dragging')
+         draggedItem = false
+         draggedFromSection = false
+         e.currentTarget.releasePointerCapture(e.pointerId)
+         document.body.style.userSelect = ''
+         removeDragVisuals()
       },
       onpointerenter: (e) => {
         if (isDragging && draggedItem && draggedItem.id !== item.id) {
@@ -321,6 +436,24 @@ function toggleSection (sectionName) {
 
 function createSection (sectionName, section) {
   const isDoneSection = sectionName === 'Done'
+  const todoList = div(
+    {
+      class: 'todo-list',
+      style: `
+        height: 70vh;
+        overflow-y: auto;
+        padding: 2rem;
+        border: 2px solid #333;
+        border-radius: 8px;
+        scroll-behavior: smooth;
+      `
+    },
+    () => List({
+      container: div({ class: 'items-container', style: 'position:relative;' }),
+      items: state.sections[sectionName].items,
+      renderItem: ({value, index}) => createTodoItem(value, sectionName)
+    })
+  )
   return div(
     { class: 'section', style: () => (['Next', 'Done'].includes(sectionName) ? ('') : '') + cornerRoundLg + paddingLg + darkLow },
     div(
@@ -356,11 +489,7 @@ function createSection (sectionName, section) {
       )
     ),
     () => !section.collapsed
-      ? List({
-        container: div({ style: (isDoneSection ? 'flex-direction:column-reverse;display:flex;' : '') + fill + 'margin-top:1em' }),
-        items: section.items,
-        renderItem: ({value}) => createTodoItem(value, sectionName)
-      })
+      ? todoList
       : Placeholder()
   )
 }
@@ -377,5 +506,89 @@ const app = div(
     window.location.reload()
   } }, 'Reset')
 )
+
+// Add CSS for enhanced drag feedback
+const style = document.createElement('style')
+style.textContent = `
+  @keyframes pulse {
+    0%, 100% { opacity: 1; transform: scaleY(1); }
+    50% { opacity: 0.7; transform: scaleY(1.2); }
+  }
+  
+  .todo-item.dragging {
+    opacity: 0.5;
+    transform: rotate(2deg);
+    cursor: grabbing !important;
+  }
+  
+  .todo-item.drag-above {
+    border-top: 2px solid #007acc;
+    background: rgba(0, 122, 204, 0.1);
+    transform: translateY(-1px);
+    transition: all 0.2s ease;
+  }
+  
+  .todo-item.drag-below {
+    border-bottom: 2px solid #007acc;
+    background: rgba(0, 122, 204, 0.1);
+    transform: translateY(1px);
+    transition: all 0.2s ease;
+  }
+  
+  .drag-clone {
+    border: 2px dashed #007acc !important;
+    transform: rotate(5deg);
+    filter: drop-shadow(4px 4px 8px rgba(0, 0, 0, 0.3));
+  }
+  
+  .todo-item {
+    transition: all 0.2s ease;
+    cursor: grab;
+    user-select: none;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+  }
+  
+  .todo-item:hover {
+    background: rgba(0, 0, 0, 0.05);
+  }
+  
+  .todo-item.dragging {
+    user-select: none !important;
+    -webkit-user-select: none !important;
+  }
+  
+  body.dragging {
+    user-select: none !important;
+    -webkit-user-select: none !important;
+  }
+  
+  .todo-item.just-dropped {
+    background: linear-gradient(90deg, rgba(40, 167, 69, 0.3), rgba(40, 167, 69, 0.1), rgba(40, 167, 69, 0.3));
+    border: 2px solid #28a745;
+    transform: scale(1.02);
+    animation: dropHighlight 1s ease-out;
+    box-shadow: 0 0 15px rgba(40, 167, 69, 0.4);
+  }
+  
+  @keyframes dropHighlight {
+    0% { 
+      background: rgba(40, 167, 69, 0.6);
+      transform: scale(1.05);
+      box-shadow: 0 0 20px rgba(40, 167, 69, 0.6);
+    }
+    50% {
+      background: rgba(40, 167, 69, 0.4);
+      transform: scale(1.02);
+    }
+    100% { 
+      background: rgba(40, 167, 69, 0.1);
+      transform: scale(1);
+      box-shadow: 0 0 5px rgba(40, 167, 69, 0.2);
+    }
+  }
+`
+document.head.appendChild(style)
 
 van.add(document.getElementById('app'), app)
