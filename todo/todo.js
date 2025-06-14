@@ -337,7 +337,7 @@ function createSection (sectionName, section) {
         { class: 'add-item' },
         input({
           class: 'add-input',
-          style: 'width:15rem',
+          style: 'max-width:15rem;min-width:13rem;',
           type: 'text',
           placeholder: 'Add new item...',
           onkeypress: (e) => {
