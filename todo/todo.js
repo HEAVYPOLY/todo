@@ -49,33 +49,33 @@ class TodoItem {
   }
   toggle(fromSection) {
     this.done = !this.done
-    if (this.done) {
-      prnt('pop from ', fromSection, ' and push to Done')
-      state.sections[fromSection].items.splice(state.sections[fromSection].items.indexOf(this), 1)
-      state.sections['Done'].items.push(this)
-      this.prevSection = fromSection
-      this.prevIndex = state.sections[fromSection].items.length // after removal, so last index
-      this.section = 'Done'
-      if (fromSection === 'Now' && state.sections.Now.items.length === 0 && state.sections.Next.items.length > 0) {
-        const promote = state.sections.Next.items.shift()
-        if (promote) state.sections.Now.items.push(promote)
-      }
-      return
-    } else {
-      prnt('pop from Done and push to ', this.prevSection)
-      state.sections['Done'].items.splice(state.sections['Done'].items.indexOf(this), 1)
-      let targetArr = state.sections.Now.items
-      let targetSection = 'Now'
-      if (this.prevSection && this.prevSection in state.sections) {
-        targetArr = state.sections[this.prevSection].items
-        targetSection = this.prevSection
-      }
-      let idx = this.prevIndex
-      if (typeof idx !== 'number' || idx < 0 || idx > targetArr.length) idx = targetArr.length
-      targetArr.splice(idx, 0, this)
-      this.section = targetSection
-      this.prevSection = 'Done'
-    }
+    // if (this.done) {
+    //   prnt('pop from ', fromSection, ' and push to Done')
+    //   state.sections[fromSection].items.splice(state.sections[fromSection].items.indexOf(this), 1)
+    //   state.sections['Done'].items.push(this)
+    //   this.prevSection = fromSection
+    //   this.prevIndex = state.sections[fromSection].items.length // after removal, so last index
+    //   this.section = 'Done'
+    //   if (fromSection === 'Now' && state.sections.Now.items.length === 0 && state.sections.Next.items.length > 0) {
+    //     const promote = state.sections.Next.items.shift()
+    //     if (promote) state.sections.Now.items.push(promote)
+    //   }
+    //   return
+    // } else {
+    //   prnt('pop from Done and push to ', this.prevSection)
+    //   state.sections['Done'].items.splice(state.sections['Done'].items.indexOf(this), 1)
+    //   let targetArr = state.sections.Now.items
+    //   let targetSection = 'Now'
+    //   if (this.prevSection && this.prevSection in state.sections) {
+    //     targetArr = state.sections[this.prevSection].items
+    //     targetSection = this.prevSection
+    //   }
+    //   let idx = this.prevIndex
+    //   if (typeof idx !== 'number' || idx < 0 || idx > targetArr.length) idx = targetArr.length
+    //   targetArr.splice(idx, 0, this)
+    //   this.section = targetSection
+    //   this.prevSection = 'Done'
+    // }
   }
 }
 
@@ -96,27 +96,27 @@ function loadState() {
 
 const state = vanX.reactive(loadState() || {
   projectName: 'HEAVYPAINT',
+  selectedIndex: 3,
   sections: {
-    Now: {
-      collapsed: false,
-      items: [
-        new TodoItem({ text: 'Login system hp4', section: 'Now' }),
-      ]
-    },
-    Next: {
-      collapsed: false,
-      items: [
-        new TodoItem({ text: 'Gallery hp4', section: 'Next' }),
-        new TodoItem({ text: 'User Prefs hp4', section: 'Next' }),
-        new TodoItem({ text: 'Purchases hp4', section: 'Next' }),
-        new TodoItem({ text: 'Check Google', section: 'Next' })
-      ]
-    },
+    // Now: {
+    //   collapsed: false,
+    //   items: [
+    //   ]
+    // },
+    // Next: {
+    //   collapsed: false,
+    //   items: [
+    //   ]
+    // },
     Done: {
       collapsed: false,
       items: [
+        new TodoItem({ text: 'Login system hp4', section: 'Now' }),
+        new TodoItem({ text: 'Gallery hp4', section: 'Next' }),
+        new TodoItem({ text: 'User Prefs hp4', section: 'Next' }),
+        new TodoItem({ text: 'Purchases hp4', section: 'Next' }),
+        new TodoItem({ text: 'Check Google', section: 'Next' }),
         new TodoItem({ text: 'iOS Image Export', section: 'Done' }),
-        new TodoItem({ text: 'Android Project export Tab', section: 'Done' }),
         new TodoItem({ text: 'Android Studio update and new project exported', section: 'Done' }),
         new TodoItem({ text: 'Android image export Tab', section: 'Done' }),
         new TodoItem({ text: 'android Image Export Note 9', section: 'Done' }),
